@@ -7,9 +7,13 @@
         "128":"icons/image1.png"
     },
     "content_scripts":[{
-        "matches":["https://{subdomain}/shorts/*"],
+        "matches":[
+            "https://www.youtube.com/*",
+            "https://m.youtube.com/*"
+        ],
         "js":[
             "js/short_blocker.js"
-        ]
+        ],
+        "run_at":"document_idle"
     }]
 }

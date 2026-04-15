@@ -1,0 +1,15 @@
+{
+    "name":"YSBlocker",
+    "version":"1.0.0",
+    "manifest_version":3,
+    "description":"個人ブラウザ設定",
+    "icons":{
+        "128":"icons/image1.png"
+    },
+    "content_scripts":[{
+        "matches":["https://{subdomain}/shorts/*"],
+        "js":[
+            "js/short_blocker.js"
+        ]
+    }]
+}

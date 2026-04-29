@@ -3,6 +3,7 @@ const QUICK_ADD_ID = "ysblocker-quick-add";
 const STATUS_CHECK_INTERVAL_MS = 1000;
 const DEFAULT_LIMIT_MINUTES = 30;
 const DEFAULT_BREAK_MINUTES = 15;
+const REMAINING_ALERT_THRESHOLD_MS = 5 * 60 * 1000;
 const GATEKEEPER_VIDEO_MODE = "sequential";
 const GATEKEEPER_VIDEOS = [
     "assets/12621388_1080_1920_30fps.mp4",
@@ -15,6 +16,7 @@ let countdownTimerId = null;
 let statusCheckTimerId = null;
 let extensionContextActive = true;
 let nextGatekeeperVideoIndex = 0;
+let remainingAlertShown = false;
 
 function formatRemainingTime(milliseconds) {
     const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -133,14 +135,39 @@ function updateCountdown() {
 
     countdown.textContent = formatRemainingTime(remaining);
 
+    if (remaining <= REMAINING_ALERT_THRESHOLD_MS && !remainingAlertShown) {
+        showRemainingAlert();
+    }
+
     if (remaining <= 0) {
         removeOverlay();
         checkBlockStatus();
     }
 }
 
+function showRemainingAlert() {
+    remainingAlertShown = true;
+
+    const dialog = document.querySelector(`#${BLOCK_OVERLAY_ID} .ysblocker-site-limit-dialog`);
+
+    if (!dialog || dialog.querySelector(".ysblocker-remaining-alert")) {
+        return;
+    }
+
+    const alert = document.createElement("div");
+    alert.className = "ysblocker-remaining-alert";
+    alert.setAttribute("role", "alert");
+    alert.textContent = "残り5分です．もう少しで再開できます．";
+    dialog.appendChild(alert);
+
+    window.setTimeout(() => {
+        alert.remove();
+    }, 8000);
+}
+
 function showOverlay(host, nextBlockedUntil) {
     blockedUntil = nextBlockedUntil;
+    remainingAlertShown = false;
     pausePageMedia();
 
     if (document.getElementById(BLOCK_OVERLAY_ID)) {
@@ -276,6 +303,28 @@ function showOverlay(host, nextBlockedUntil) {
             font-variant-numeric: tabular-nums;
             font-weight: 700;
             letter-spacing: 0;
+        }
+
+        #${BLOCK_OVERLAY_ID} .ysblocker-remaining-alert {
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            z-index: 4;
+            width: min(420px, calc(100% - 32px));
+            min-height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #111827;
+            background: rgba(254, 243, 199, 0.94);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.5;
+            transform: translateX(-50%);
         }
 
         #${BLOCK_OVERLAY_ID} .ysblocker-cat {

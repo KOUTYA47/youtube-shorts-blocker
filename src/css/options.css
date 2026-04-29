@@ -83,7 +83,7 @@ h2 {
 
 .rule-form {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) 160px auto;
+    grid-template-columns: minmax(220px, 1fr) 150px 150px auto;
     gap: 12px;
     align-items: end;
 }
@@ -114,7 +114,7 @@ input {
 
 .rule-row {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) 150px 140px auto auto;
+    grid-template-columns: minmax(180px, 1fr) 110px 110px 140px auto auto auto;
     gap: 10px;
     align-items: center;
     padding: 12px;

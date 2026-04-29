@@ -2,7 +2,7 @@
     "name":"YSBlocker",
     "version":"1.1.0",
     "manifest_version":3,
-    "description":"YouTube Shortsの警告と指定サイトの時間制限を行う個人用Chrome拡張機能",
+    "description":"YouTube Shortsと指定サイトの利用時間を猫オーバーレイで制限する個人用Chrome拡張機能",
     "icons":{
         "128":"icons/image1.png"
     },
@@ -20,16 +20,6 @@
         "default_title":"YSBlocker"
     },
     "content_scripts":[
-        {
-            "matches":[
-                "https://www.youtube.com/*",
-                "https://m.youtube.com/*"
-            ],
-            "js":[
-                "js/short_blocker.js"
-            ],
-            "run_at":"document_idle"
-        },
         {
             "matches":[
                 "<all_urls>"

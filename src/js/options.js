@@ -5,10 +5,12 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_LIMIT_MINUTES = 30;
+const DEFAULT_BREAK_MINUTES = 15;
 
 const ruleForm = document.getElementById("ruleForm");
 const hostInput = document.getElementById("hostInput");
 const limitInput = document.getElementById("limitInput");
+const breakInput = document.getElementById("breakInput");
 const rulesList = document.getElementById("rulesList");
 const resetUsageButton = document.getElementById("resetUsageButton");
 
@@ -43,6 +45,18 @@ function formatUsage(milliseconds) {
     return `${minutes}分${seconds}秒`;
 }
 
+function getRuleKey(rule) {
+    return rule.id || normalizeHost(rule.host);
+}
+
+function formatRuleTarget(rule) {
+    if (rule.label) {
+        return `${rule.label}，${rule.host}${rule.pathPrefix || ""}`;
+    }
+
+    return rule.pathPrefix ? `${rule.host}${rule.pathPrefix}` : rule.host;
+}
+
 async function getState() {
     return chrome.storage.local.get([
         STORAGE_KEYS.RULES,
@@ -62,15 +76,25 @@ function createRuleRow(rule, index, todayUsage, blocks) {
 
     const host = document.createElement("div");
     host.className = "rule-host";
-    host.textContent = rule.host;
+    host.textContent = formatRuleTarget(rule);
 
-    const limit = document.createElement("div");
-    limit.className = "rule-meta";
-    limit.textContent = `上限 ${rule.limitMinutes}分`;
+    const limit = document.createElement("input");
+    limit.type = "number";
+    limit.min = "1";
+    limit.step = "1";
+    limit.value = String(rule.limitMinutes || DEFAULT_LIMIT_MINUTES);
+    limit.title = "上限時間，分";
+
+    const breakTime = document.createElement("input");
+    breakTime.type = "number";
+    breakTime.min = "1";
+    breakTime.step = "1";
+    breakTime.value = String(rule.breakMinutes || DEFAULT_BREAK_MINUTES);
+    breakTime.title = "休憩時間，分";
 
     const usage = document.createElement("div");
     usage.className = "rule-meta";
-    usage.textContent = `今日 ${formatUsage(todayUsage[rule.host])}`;
+    usage.textContent = `今日 ${formatUsage(todayUsage[getRuleKey(rule)])}`;
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
@@ -83,17 +107,36 @@ function createRuleRow(rule, index, todayUsage, blocks) {
         await saveRules(rules);
     });
 
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "保存";
+    saveButton.addEventListener("click", async () => {
+        const state = await getState();
+        const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
+        rules[index] = {
+            ...rules[index],
+            limitMinutes: Math.max(1, Number.parseInt(limit.value, 10) || DEFAULT_LIMIT_MINUTES),
+            breakMinutes: Math.max(1, Number.parseInt(breakTime.value, 10) || DEFAULT_BREAK_MINUTES)
+        };
+        await saveRules(rules);
+    });
+
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "danger";
     deleteButton.textContent = "削除";
+    deleteButton.disabled = Boolean(rule.id);
     deleteButton.addEventListener("click", async () => {
+        if (rule.id) {
+            return;
+        }
+
         const state = await getState();
         const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
         rules.splice(index, 1);
 
         const nextBlocks = { ...(state[STORAGE_KEYS.BLOCKS] || {}) };
-        delete nextBlocks[rule.host];
+        delete nextBlocks[getRuleKey(rule)];
 
         await chrome.storage.local.set({
             [STORAGE_KEYS.RULES]: rules,
@@ -102,13 +145,13 @@ function createRuleRow(rule, index, todayUsage, blocks) {
         await renderRules();
     });
 
-    const blockedUntil = Number(blocks[rule.host] || 0);
+    const blockedUntil = Number(blocks[getRuleKey(rule)] || 0);
 
     if (blockedUntil > Date.now()) {
         usage.textContent += "，ブロック中";
     }
 
-    row.append(host, limit, usage, toggleButton, deleteButton);
+    row.append(host, limit, breakTime, usage, saveButton, toggleButton, deleteButton);
 
     return row;
 }
@@ -140,6 +183,7 @@ ruleForm.addEventListener("submit", async (event) => {
 
     const host = normalizeHost(hostInput.value);
     const limitMinutes = Math.max(1, Number.parseInt(limitInput.value, 10) || DEFAULT_LIMIT_MINUTES);
+    const breakMinutes = Math.max(1, Number.parseInt(breakInput.value, 10) || DEFAULT_BREAK_MINUTES);
 
     if (host === "") {
         return;
@@ -147,8 +191,10 @@ ruleForm.addEventListener("submit", async (event) => {
 
     const state = await getState();
     const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
-    const existingRuleIndex = rules.findIndex((rule) => rule.host === host);
-    const nextRule = { host, limitMinutes, enabled: true };
+    const existingRuleIndex = rules.findIndex((rule) => {
+        return !rule.id && !rule.pathPrefix && rule.host === host;
+    });
+    const nextRule = { host, limitMinutes, breakMinutes, enabled: true };
 
     if (existingRuleIndex >= 0) {
         rules[existingRuleIndex] = nextRule;
@@ -159,6 +205,7 @@ ruleForm.addEventListener("submit", async (event) => {
     await saveRules(rules);
     ruleForm.reset();
     limitInput.value = String(DEFAULT_LIMIT_MINUTES);
+    breakInput.value = String(DEFAULT_BREAK_MINUTES);
     hostInput.focus();
 });
 

@@ -5,8 +5,18 @@ const STORAGE_KEYS = {
 };
 
 const TICK_INTERVAL_MS = 1000;
-const BLOCK_DURATION_MS = 15 * 60 * 1000;
 const DEFAULT_LIMIT_MINUTES = 30;
+const DEFAULT_BREAK_MINUTES = 15;
+const SHORTS_RULE_ID = "youtube-shorts";
+const DEFAULT_SHORTS_RULE = {
+    id: SHORTS_RULE_ID,
+    label: "YouTube Shorts",
+    host: "youtube.com",
+    pathPrefix: "/shorts/",
+    limitMinutes: 5,
+    breakMinutes: DEFAULT_BREAK_MINUTES,
+    enabled: true
+};
 
 const lastHeartbeatByTab = new Map();
 
@@ -33,22 +43,29 @@ function normalizeHost(value) {
     }
 }
 
-function getHostFromUrl(url) {
+function getUrlParts(url) {
     try {
         const parsedUrl = new URL(url);
 
         if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-            return "";
+            return null;
         }
 
-        return parsedUrl.hostname.replace(/^www\./, "");
+        return {
+            host: parsedUrl.hostname.replace(/^www\./, ""),
+            path: parsedUrl.pathname
+        };
     } catch {
-        return "";
+        return null;
     }
 }
 
 function isRuleMatch(host, ruleHost) {
     return host === ruleHost || host.endsWith(`.${ruleHost}`);
+}
+
+function getRuleKey(rule) {
+    return rule.id || normalizeHost(rule.host);
 }
 
 async function getState() {
@@ -62,16 +79,30 @@ async function getState() {
 async function setDefaultRulesIfNeeded() {
     const state = await chrome.storage.local.get(STORAGE_KEYS.RULES);
 
-    if (Array.isArray(state[STORAGE_KEYS.RULES])) {
+    if (!Array.isArray(state[STORAGE_KEYS.RULES])) {
+        await chrome.storage.local.set({
+            [STORAGE_KEYS.RULES]: [DEFAULT_SHORTS_RULE]
+        });
+        return;
+    }
+
+    const rules = state[STORAGE_KEYS.RULES];
+    const hasShortsRule = rules.some((rule) => rule.id === SHORTS_RULE_ID);
+
+    if (hasShortsRule) {
         return;
     }
 
     await chrome.storage.local.set({
-        [STORAGE_KEYS.RULES]: []
+        [STORAGE_KEYS.RULES]: [DEFAULT_SHORTS_RULE, ...rules]
     });
 }
 
-function findMatchedRule(host, rules) {
+function isPathMatch(path, pathPrefix) {
+    return !pathPrefix || path.startsWith(pathPrefix);
+}
+
+function findMatchedRule(urlParts, rules) {
     return rules.find((rule) => {
         if (!rule || rule.enabled === false) {
             return false;
@@ -79,7 +110,9 @@ function findMatchedRule(host, rules) {
 
         const ruleHost = normalizeHost(rule.host);
 
-        return ruleHost !== "" && isRuleMatch(host, ruleHost);
+        return ruleHost !== ""
+            && isRuleMatch(urlParts.host, ruleHost)
+            && isPathMatch(urlParts.path, rule.pathPrefix);
     });
 }
 
@@ -90,15 +123,15 @@ function pruneExpiredBlocks(blocks, now) {
 }
 
 async function getBlockInfoForUrl(url) {
-    const host = getHostFromUrl(url);
+    const urlParts = getUrlParts(url);
 
-    if (host === "") {
+    if (!urlParts) {
         return { blocked: false };
     }
 
     const state = await getState();
     const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
-    const rule = findMatchedRule(host, rules);
+    const rule = findMatchedRule(urlParts, rules);
 
     if (!rule) {
         return { blocked: false };
@@ -107,10 +140,11 @@ async function getBlockInfoForUrl(url) {
     const now = Date.now();
     const blocks = pruneExpiredBlocks(state[STORAGE_KEYS.BLOCKS] || {}, now);
     const ruleHost = normalizeHost(rule.host);
-    const blockedUntil = Number(blocks[ruleHost] || 0);
+    const ruleKey = getRuleKey(rule);
+    const blockedUntil = Number(blocks[ruleKey] || 0);
 
     if (blockedUntil <= now) {
-        if (state[STORAGE_KEYS.BLOCKS] && state[STORAGE_KEYS.BLOCKS][ruleHost]) {
+        if (state[STORAGE_KEYS.BLOCKS] && state[STORAGE_KEYS.BLOCKS][ruleKey]) {
             await chrome.storage.local.set({ [STORAGE_KEYS.BLOCKS]: blocks });
         }
 
@@ -119,7 +153,7 @@ async function getBlockInfoForUrl(url) {
 
     return {
         blocked: true,
-        host: ruleHost,
+        host: rule.label || ruleHost,
         blockedUntil
     };
 }
@@ -130,24 +164,24 @@ async function trackUsage(url, tabId) {
     const elapsedMs = Math.min(Math.max(0, now - lastHeartbeatAt), TICK_INTERVAL_MS * 5);
     lastHeartbeatByTab.set(tabId, now);
 
-    const host = getHostFromUrl(url);
+    const urlParts = getUrlParts(url);
 
-    if (host === "") {
+    if (!urlParts) {
         return;
     }
 
     const state = await getState();
     const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
-    const rule = findMatchedRule(host, rules);
+    const rule = findMatchedRule(urlParts, rules);
 
     if (!rule) {
         return;
     }
 
-    const ruleHost = normalizeHost(rule.host);
+    const ruleKey = getRuleKey(rule);
     const blocks = pruneExpiredBlocks(state[STORAGE_KEYS.BLOCKS] || {}, now);
 
-    if (Number(blocks[ruleHost] || 0) > now) {
+    if (Number(blocks[ruleKey] || 0) > now) {
         await chrome.storage.local.set({ [STORAGE_KEYS.BLOCKS]: blocks });
         return;
     }
@@ -155,15 +189,16 @@ async function trackUsage(url, tabId) {
     const dateKey = todayKey();
     const usageByDate = state[STORAGE_KEYS.USAGE] || {};
     const todayUsage = usageByDate[dateKey] || {};
-    const currentUsageMs = Number(todayUsage[ruleHost] || 0) + elapsedMs;
+    const currentUsageMs = Number(todayUsage[ruleKey] || 0) + elapsedMs;
     const limitMs = Math.max(1, Number(rule.limitMinutes || DEFAULT_LIMIT_MINUTES)) * 60 * 1000;
+    const breakMs = Math.max(1, Number(rule.breakMinutes || DEFAULT_BREAK_MINUTES)) * 60 * 1000;
 
-    todayUsage[ruleHost] = currentUsageMs;
+    todayUsage[ruleKey] = currentUsageMs;
     usageByDate[dateKey] = todayUsage;
 
     if (currentUsageMs >= limitMs) {
-        blocks[ruleHost] = now + BLOCK_DURATION_MS;
-        todayUsage[ruleHost] = 0;
+        blocks[ruleKey] = now + breakMs;
+        todayUsage[ruleKey] = 0;
         await chrome.storage.local.set({
             [STORAGE_KEYS.USAGE]: usageByDate,
             [STORAGE_KEYS.BLOCKS]: blocks

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>YSBlocker Settings</title>
+    <link rel="stylesheet" href="css/options.css">
+</head>
+<body>
+    <main class="settings">
+        <section class="settings-header">
+            <div>
+                <p class="eyebrow">YSBlocker</p>
+                <h1>サイト時間制限</h1>
+            </div>
+            <button id="resetUsageButton" type="button">今日の計測をリセット</button>
+        </section>
+
+        <section class="editor">
+            <form id="ruleForm" class="rule-form">
+                <label>
+                    <span>対象サイト</span>
+                    <input id="hostInput" type="text" placeholder="example.com" autocomplete="off" required>
+                </label>
+                <label>
+                    <span>上限時間，分</span>
+                    <input id="limitInput" type="number" min="1" step="1" value="30" required>
+                </label>
+                <button type="submit">追加</button>
+            </form>
+        </section>
+
+        <section class="rules">
+            <h2>登録済みサイト</h2>
+            <div id="rulesList" class="rules-list"></div>
+        </section>
+    </main>
+
+    <script src="js/options.js"></script>
+</body>
+</html>

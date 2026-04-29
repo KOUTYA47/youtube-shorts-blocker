@@ -1,19 +1,43 @@
 {
     "name":"YSBlocker",
-    "version":"1.0.0",
+    "version":"1.1.0",
     "manifest_version":3,
-    "description":"個人ブラウザ設定",
+    "description":"YouTube Shortsの警告と指定サイトの時間制限を行う個人用Chrome拡張機能",
     "icons":{
         "128":"icons/image1.png"
     },
-    "content_scripts":[{
-        "matches":[
-            "https://www.youtube.com/*",
-            "https://m.youtube.com/*"
-        ],
-        "js":[
-            "js/short_blocker.js"
-        ],
-        "run_at":"document_idle"
-    }]
+    "permissions":[
+        "storage"
+    ],
+    "host_permissions":[
+        "<all_urls>"
+    ],
+    "background":{
+        "service_worker":"js/site_timer_background.js"
+    },
+    "options_page":"options.html",
+    "action":{
+        "default_title":"YSBlocker"
+    },
+    "content_scripts":[
+        {
+            "matches":[
+                "https://www.youtube.com/*",
+                "https://m.youtube.com/*"
+            ],
+            "js":[
+                "js/short_blocker.js"
+            ],
+            "run_at":"document_idle"
+        },
+        {
+            "matches":[
+                "<all_urls>"
+            ],
+            "js":[
+                "js/site_blocker_content.js"
+            ],
+            "run_at":"document_idle"
+        }
+    ]
 }

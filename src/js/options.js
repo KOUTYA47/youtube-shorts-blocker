@@ -24,7 +24,23 @@ function normalizeHost(value) {
     try {
         return new URL(trimmed).hostname.replace(/^www\./, "");
     } catch {
-        return trimmed.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, "");
+        return trimmed.replace(/^https?:\/\//, "").replace(/\/\*$/, "").split("/")[0].replace(/^www\./, "");
+    }
+}
+
+function getDraftPatternFromUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+            return "";
+        }
+
+        const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
+
+        return `${host}/*`;
+    } catch {
+        return "";
     }
 }
 
@@ -178,6 +194,21 @@ async function renderRules() {
     });
 }
 
+async function fillCurrentSiteDraft() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const draftPattern = getDraftPatternFromUrl(tab?.url || "");
+
+        if (draftPattern === "" || hostInput.value.trim() !== "") {
+            return;
+        }
+
+        hostInput.value = draftPattern;
+    } catch {
+        // Current tab access can fail on browser-internal pages.
+    }
+}
+
 ruleForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -222,3 +253,4 @@ resetUsageButton.addEventListener("click", async () => {
 });
 
 renderRules();
+fillCurrentSiteDraft();

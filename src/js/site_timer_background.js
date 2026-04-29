@@ -39,7 +39,7 @@ function normalizeHost(value) {
     try {
         return new URL(trimmed).hostname.replace(/^www\./, "");
     } catch {
-        return trimmed.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, "");
+        return trimmed.replace(/^https?:\/\//, "").replace(/\/\*$/, "").split("/")[0].replace(/^www\./, "");
     }
 }
 
@@ -66,6 +66,15 @@ function isRuleMatch(host, ruleHost) {
 
 function getRuleKey(rule) {
     return rule.id || normalizeHost(rule.host);
+}
+
+function createUserRule(host, limitMinutes, breakMinutes) {
+    return {
+        host: normalizeHost(host),
+        limitMinutes: Math.max(1, Number(limitMinutes || DEFAULT_LIMIT_MINUTES)),
+        breakMinutes: Math.max(1, Number(breakMinutes || DEFAULT_BREAK_MINUTES)),
+        enabled: true
+    };
 }
 
 async function getState() {
@@ -209,6 +218,30 @@ async function trackUsage(url, tabId) {
     await chrome.storage.local.set({ [STORAGE_KEYS.USAGE]: usageByDate });
 }
 
+async function saveUserRule(host, limitMinutes, breakMinutes) {
+    const nextRule = createUserRule(host, limitMinutes, breakMinutes);
+
+    if (nextRule.host === "") {
+        return { ok: false, error: "INVALID_HOST" };
+    }
+
+    const state = await chrome.storage.local.get(STORAGE_KEYS.RULES);
+    const rules = Array.isArray(state[STORAGE_KEYS.RULES]) ? state[STORAGE_KEYS.RULES] : [];
+    const existingRuleIndex = rules.findIndex((rule) => {
+        return !rule.id && !rule.pathPrefix && normalizeHost(rule.host) === nextRule.host;
+    });
+
+    if (existingRuleIndex >= 0) {
+        rules[existingRuleIndex] = nextRule;
+    } else {
+        rules.push(nextRule);
+    }
+
+    await chrome.storage.local.set({ [STORAGE_KEYS.RULES]: rules });
+
+    return { ok: true, rule: nextRule };
+}
+
 chrome.runtime.onInstalled.addListener(() => {
     setDefaultRulesIfNeeded();
 });
@@ -222,6 +255,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         getBlockInfoForUrl(message.url)
             .then(sendResponse)
             .catch(() => sendResponse({ blocked: false }));
+
+        return true;
+    }
+
+    if (message?.type === "SAVE_SITE_LIMIT_RULE") {
+        saveUserRule(message.host, message.limitMinutes, message.breakMinutes)
+            .then(sendResponse)
+            .catch(() => sendResponse({ ok: false, error: "SAVE_FAILED" }));
 
         return true;
     }

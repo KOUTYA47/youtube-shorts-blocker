@@ -7,7 +7,8 @@
         "128":"icons/image1.png"
     },
     "permissions":[
-        "storage"
+        "storage",
+        "tabs"
     ],
     "host_permissions":[
         "<all_urls>"
@@ -17,7 +18,8 @@
     },
     "options_page":"options.html",
     "action":{
-        "default_title":"YSBlocker"
+        "default_title":"YSBlocker",
+        "default_popup":"popup.html"
     },
     "content_scripts":[
         {
@@ -28,6 +30,18 @@
                 "js/site_blocker_content.js"
             ],
             "run_at":"document_idle"
+        }
+    ],
+    "web_accessible_resources":[
+        {
+            "resources":[
+                "assets/12621388_1080_1920_30fps.mp4",
+                "assets/15369422_1080_1920_60fps.mp4",
+                "assets/cat-gatekeeper.webm"
+            ],
+            "matches":[
+                "<all_urls>"
+            ]
         }
     ]
 }

@@ -1,0 +1,98 @@
+body {
+    width: 320px;
+    margin: 0;
+    color: #172033;
+    background: #f8fafc;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+.popup {
+    padding: 16px;
+}
+
+.header {
+    margin-bottom: 14px;
+}
+
+.eyebrow {
+    margin: 0 0 3px;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+h1 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.3;
+}
+
+.form {
+    display: grid;
+    gap: 12px;
+}
+
+label {
+    display: grid;
+    gap: 6px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+input {
+    width: 100%;
+    min-height: 38px;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 10px;
+    color: #172033;
+    background: #ffffff;
+}
+
+.time-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 14px;
+    color: #ffffff;
+    background: #2563eb;
+    cursor: pointer;
+}
+
+button.secondary {
+    width: 100%;
+    color: #172033;
+    background: #e5e7eb;
+}
+
+.message {
+    min-height: 18px;
+    margin: 0;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.message.error {
+    color: #b91c1c;
+}
+
+.actions {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}

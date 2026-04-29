@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>YSBlocker</title>
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+    <main class="popup">
+        <header class="header">
+            <div>
+                <p class="eyebrow">YSBlocker</p>
+                <h1>サイトを登録</h1>
+            </div>
+        </header>
+
+        <form id="ruleForm" class="form">
+            <label>
+                <span>対象サイトパターン</span>
+                <input id="hostInput" type="text" placeholder="example.com/*" autocomplete="off" required>
+            </label>
+            <div class="time-grid">
+                <label>
+                    <span>上限，分</span>
+                    <input id="limitInput" type="number" min="1" step="1" value="30" required>
+                </label>
+                <label>
+                    <span>休憩，分</span>
+                    <input id="breakInput" type="number" min="1" step="1" value="15" required>
+                </label>
+            </div>
+            <button type="submit">登録</button>
+            <p id="message" class="message"></p>
+        </form>
+
+        <div class="actions">
+            <button id="openOptionsButton" type="button" class="secondary">詳細設定を開く</button>
+        </div>
+    </main>
+
+    <script src="js/popup.js"></script>
+</body>
+</html>
